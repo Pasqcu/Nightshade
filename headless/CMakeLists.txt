@@ -1402,8 +1402,11 @@ list(APPEND core_sources "${PORT_BUILD_DIR}/deconstructed_rom_directory.cpp")
 # NACP fields Eden defaults when the metadata is missing.
 file(READ "${PROJECT_SOURCE_DIR}/src/core/hle/service/am/service/application_functions.cpp" app_functions_source)
 set(app_functions_old "    auto const seed = res.first->raw.seed_for_pseudo_device_id;")
+# Switch 2 support (nx2) already seeds from the program ID when there is no control data.
+set(app_functions_nx2 "res.first != nullptr ? res.first->raw.seed_for_pseudo_device_id")
 string(FIND "${app_functions_source}" "${app_functions_old}" app_functions_at)
-if(app_functions_at LESS 0)
+string(FIND "${app_functions_source}" "${app_functions_nx2}" app_functions_nx2_at)
+if(app_functions_at LESS 0 AND app_functions_nx2_at LESS 0)
     message(FATAL_ERROR "Pinned GetPseudoDeviceId changed")
 endif()
 string(REPLACE "${app_functions_old}" "    auto const seed = res.first != nullptr ? res.first->raw.seed_for_pseudo_device_id : u64_le{0};" app_functions_source "${app_functions_source}")
@@ -2800,12 +2803,13 @@ if(EDEN_PS5_OPENGL)
         string(REPLACE "thread.get_stop_token()" "stop_source.get_token()" gpu_worker "${gpu_worker}")
         string(REPLACE "ThreadManager::~ThreadManager() = default;" "ThreadManager::~ThreadManager() { Stop(); }" gpu_worker "${gpu_worker}")
         # Eden's own shutdown of its std::jthread worker: the worker here is a pthread, ended by Stop.
-        set(worker_shutdown "void ThreadManager::NotifyShutdown() {\n    if (thread.joinable()) {\n        thread.request_stop();\n        thread.join();\n    }\n}")
+        # Switch 2 support (nx2) also stops the GPU thread split's back thread here.
+        set(worker_shutdown "void ThreadManager::NotifyShutdown() {\n    if (thread.joinable()) {\n        thread.request_stop();\n        thread.join();\n    }\n    VideoCommon::GpuSplit::Get().Stop();\n}")
         string(FIND "${gpu_worker}" "${worker_shutdown}" worker_shutdown_at)
         if(worker_shutdown_at LESS 0)
             message(FATAL_ERROR "Pinned GPU worker shutdown changed")
         endif()
-        string(REPLACE "${worker_shutdown}" "void ThreadManager::NotifyShutdown() { Stop(); }" gpu_worker "${gpu_worker}")
+        string(REPLACE "${worker_shutdown}" "void ThreadManager::NotifyShutdown() {\n    Stop();\n    VideoCommon::GpuSplit::Get().Stop();\n}" gpu_worker "${gpu_worker}")
         string(REPLACE "        CommandDataContainer next;" "        unsigned dispatches = 0;\n        CommandDataContainer next;" gpu_worker "${gpu_worker}")
         set(dispatch_call "                scheduler.Push(system.GPU(), submit_list->channel, std::move(submit_list->entries));")
         string(REPLACE "${dispatch_call}"
@@ -3396,7 +3400,7 @@ write_derived("${PORT_BUILD_DIR}/version/app_version.h"
 # official releases; a GitHub repository as owner/name, that repository's newest release instead
 # (update_check/github_release.h). A header of its own too, read by update_notice.cpp alone.
 # Nightshade, this release line, asks its own repository (EDEN_UPDATE_REPOSITORY= for the catalog).
-set(EDEN_UPDATE_REPOSITORY "Oliv3rmoon/Nightshade" CACHE STRING
+set(EDEN_UPDATE_REPOSITORY "Pasqcu/Nightshade" CACHE STRING
     "GitHub repository (owner/name) whose releases the update check asks; empty: the homebrew.page catalog")
 include("${EDEN_PORT_DIR}/update_repository.cmake") # refuses what the update check would refuse
 write_derived("${PORT_BUILD_DIR}/version/update_repository.h"

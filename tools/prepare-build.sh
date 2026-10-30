@@ -48,8 +48,14 @@ eden_patch_set=$(cat "${eden_patches[@]}" | sha256sum | cut -d' ' -f1)
 if [[ $(cat "$eden/.eden-patches" 2>/dev/null) != "$eden_patch_set" ]]; then
     step "Eden patches (${#eden_patches[@]})"
     rm -f "$eden/.eden-patches"
-    sed -n 's|^+++ b/||p' "${eden_patches[@]}" | sort -u | sed 's|^|*/|' |
-        xargs tar -xzf ".deps/$eden_archive" --wildcards --strip-components=1 -C "$eden"
+    # A file a patch creates is not in the archive: it is removed (the patch makes it again), and
+    # only the files the archive has come back from it.
+    tar -tzf ".deps/$eden_archive" | sed 's|^[^/]*/||' | sort -u > "$scratch/eden-archive-files"
+    sed -n 's|^+++ b/||p' "${eden_patches[@]}" | sort -u > "$scratch/eden-patched-files"
+    comm -13 "$scratch/eden-archive-files" "$scratch/eden-patched-files" |
+        while read -r created; do rm -f "$eden/$created"; done
+    comm -12 "$scratch/eden-archive-files" "$scratch/eden-patched-files" | sed 's|^|*/|' |
+        xargs -r tar -xzf ".deps/$eden_archive" --wildcards --strip-components=1 -C "$eden"
     for eden_patch in "${eden_patches[@]}"; do
         patch -d "$eden" -p1 -N -s < "$eden_patch" || { echo "$eden_patch does not apply to Eden's source" >&2; exit 1; }
     done
