@@ -2305,7 +2305,7 @@ index 80b7abd6a1342e25b1d2a92265d22dd140f0043f..507cdac71d312aee3c27b67a67ff89dc
      Kernel::KEvent* unknown_event;
  
 diff --git a/src/core/hle/service/nvdrv/devices/nvhost_gpu.cpp b/src/core/hle/service/nvdrv/devices/nvhost_gpu.cpp
-index 358679b831ca4f23753d571317d7d3ec328aaef1..2a144cc7abf9c3beea242cab4b70e35f3983dbe3 100644
+index 358679b831ca4f23753d571317d7d3ec328aaef1..5a36a3f8929e6874711419cd594d275fe046c604 100644
 --- a/src/core/hle/service/nvdrv/devices/nvhost_gpu.cpp
 +++ b/src/core/hle/service/nvdrv/devices/nvhost_gpu.cpp
 @@ -4,7 +4,9 @@
@@ -2437,7 +2437,7 @@ index 358679b831ca4f23753d571317d7d3ec328aaef1..2a144cc7abf9c3beea242cab4b70e35f
      const auto bind_id = channel_state->bind_id;
  
 +    if (g_nx2_driver) {
-+        for (const auto& entry : entries.command_lists) {
++        for ([[maybe_unused]] const auto& entry : entries.command_lists) {
 +            LOG_TRACE(Service_NVDRV, "nx2 GPFIFO entry raw={:#018x} addr={:#x} size={:#x}", entry.raw,
 +                     entry.addr.Value(), entry.size.Value());
 +        }
@@ -12503,10 +12503,10 @@ index 974d214e107c5e62446a78062f0ffea6c9a9b67b..3a6546b41b91ac530f4f91a5abdbe624
  
 diff --git a/src/video_core/gpu_split.cpp b/src/video_core/gpu_split.cpp
 new file mode 100644
-index 0000000000000000000000000000000000000000..07fda589ff369b29a457976d587f807f74adbec7
+index 0000000000000000000000000000000000000000..dd59a80268db254c2dbdc4d9baf44620ad8aca64
 --- /dev/null
 +++ b/src/video_core/gpu_split.cpp
-@@ -0,0 +1,335 @@
+@@ -0,0 +1,336 @@
 +// SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 +// SPDX-License-Identifier: GPL-3.0-or-later
 +
@@ -12548,7 +12548,8 @@ index 0000000000000000000000000000000000000000..07fda589ff369b29a457976d587f807f
 +#endif
 +}
 +
-+std::atomic<u32> g_back_thread_id{};
++// Only the Windows owner check reads it.
++[[maybe_unused]] std::atomic<u32> g_back_thread_id{};
 +std::atomic<bool> g_back_busy{};
 +
 +} // Anonymous namespace
